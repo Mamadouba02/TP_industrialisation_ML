@@ -1,0 +1,105 @@
+{
+    "tested_commit":  "062fd9a92512359d0453f0e45795e529c03557d3",
+    "run":  {
+                "id":  38288623027,
+                "status":  "completed",
+                "conclusion":  "success",
+                "head_branch":  "main",
+                "html_url":  "https://github.com/Mamadouba02/TP_industrialisation_ML/actions/runs/38288623027"
+            },
+    "verified_date":  "2026-10-12",
+    "jobs":  [
+                 {
+                     "id":  114942954287,
+                     "status":  "completed",
+                     "conclusion":  "success",
+                     "steps":  [
+                                   {
+                                       "name":  "Set up job",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Run actions/checkout@v4",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Run actions/setup-python@v5",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Versioned artifact provenance",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Run pip install -r requirements.txt",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Run python -m src.generate_data",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Run python -m src.train",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Run python -m notebooks.exploration",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Run pytest -m \u0027not e2e\u0027",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Run docker compose config --quiet",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Run docker build -t ml-churn-api:ci .",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Container integration",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Selenium",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Container logs",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Post Run actions/setup-python@v5",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Post Run actions/checkout@v4",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   },
+                                   {
+                                       "name":  "Complete job",
+                                       "status":  "completed",
+                                       "conclusion":  "success"
+                                   }
+                               ]
+                 }
+             ]
+}
