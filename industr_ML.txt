@@ -1,0 +1,1124 @@
+Le projet fil rouge est noté. Merci de suivre les directives et d'apporter les corrections nécessaires pour la mise en œuvre de ce pipeline ML.
+Cas d’étude : prédiction du churn des clients d’un opérateur télécom
+Objectif général
+L'objectif de ce TP est de transformer un modèle de Machine Learning développé dans un environnement de Data Science en une application industrielle déployable, testable, monitorée et maintenable.
+
+Cas d’étude : prédiction du churn des clients d’un opérateur télécom
+1. Objectif général
+L'objectif de ce TP est de transformer un modèle de Machine Learning développé dans un environnement de Data Science en une application industrielle déployable, testable, monitorée et maintenable.
+
+À la fin du projet, l'étudiant sera capable de réaliser le cycle.
+
+PARTIE 1 — PRÉPARATION DE L’ENVIRONNEMENT
+1.1 Vérifier le système
+Sous Ubuntu : lsb_release -a
+
+ 
+Vérifier Python : python3 --version
+
+ 
+Vérifier Git : git --version
+
+ 
+Vérifier Docker : docker --version
+
+ 
+Vérifier Docker Compose : docker compose version
+
+ 
+Si Docker n'est pas installé :
+
+sudo apt update
+sudo apt install docker.io docker-compose-v2 -y
+Activer Docker :
+
+sudo systemctl enable docker
+sudo systemctl start docker
+Ajouter l'utilisateur au groupe Docker : sudo usermod -aG docker $USER
+
+ 
+Puis redémarrer la session.
+
+Tester : docker run hello-world
+
+
+ 
+PARTIE 2 — CRÉATION DU PROJET
+Créer le projet :
+
+mkdir ml-churn-project
+cd ml-churn-project
+Créer l'arborescence :
+
+mkdir -p data/raw
+mkdir -p data/processed
+mkdir -p notebooks
+mkdir -p src
+mkdir -p models
+mkdir -p api
+mkdir -p tests
+mkdir -p frontend
+mkdir -p monitoring/prometheus
+mkdir -p monitoring/grafana
+mkdir -p docker/logstash
+mkdir -p .github/workflows
+Vérifier : tree
+
+ 
+Si tree n'est pas installé : sudo apt install tree -y
+
+
+ 
+PARTIE 3 — ENVIRONNEMENT PYTHON
+Créer l'environnement virtuel : python3 -m venv .venv
+
+ 
+Activer : source .venv/bin/activate
+
+ 
+Sous Windows : .venv\Scripts\activate
+
+ 
+Mettre pip à jour :
+
+pip install --upgrade pip
+Installer les bibliothèques :
+
+pip install pandas numpy scikit-learn matplotlib seaborn joblib fastapi uvicorn pydantic pytest httpx prometheus-fastapi-instrumentator
+Créer le fichier des dépendances :
+
+pip freeze > requirements.txt
+
+PARTIE 4 — CRÉATION DU DATASET
+Pour éviter de dépendre d'un dataset externe, nous allons créer un dataset pédagogique réaliste.
+
+Créer : nano src/generate_data.py
+
+ 
+Contenu :
+
+import pandas as pd
+import numpy as np
+
+np.random.seed(42)
+
+n = 2000
+
+age = np.random.randint(18, 70, n)
+anciennete = np.random.randint(1, 120, n)
+revenu = np.random.randint(150000, 1000000, n)
+nb_reclamations = np.random.poisson(2, n)
+montant_mensuel = np.random.randint(5000, 75000, n)
+retards_paiement = np.random.poisson(1, n)
+
+score = (
+    0.04 * nb_reclamations
+    + 0.08 * retards_paiement
+    - 0.015 * anciennete
+    + 0.00001 * montant_mensuel
+)
+
+probabilite = 1 / (1 + np.exp(-score))
+
+churn = (np.random.random(n) < probabilite).astype(int)
+
+df = pd.DataFrame({
+    "age": age,
+    "anciennete": anciennete,
+    "revenu": revenu,
+    "nb_reclamations": nb_reclamations,
+    "montant_mensuel": montant_mensuel,
+    "retards_paiement": retards_paiement,
+    "churn": churn
+})
+
+df.to_csv("data/raw/churn.csv", index=False)
+
+print(df.head())
+print()
+print(df["churn"].value_counts())
+Exécuter : python src/generate_data.py
+
+ 
+Vérifier : ls data/raw
+
+ 
+Résultat attendu : churn.csv
+
+PARTIE 5 — EXPLORATION DES DONNÉES
+Créer : nano notebooks/exploration.py
+
+ 
+Code :
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+df = pd.read_csv("../data/raw/churn.csv")
+
+print(df.head())
+
+print("\nDimensions :")
+print(df.shape)
+
+print("\nTypes :")
+print(df.dtypes)
+
+print("\nValeurs manquantes :")
+print(df.isnull().sum())
+
+print("\nStatistiques :")
+print(df.describe())
+
+print("\nRépartition du churn :")
+print(df["churn"].value_counts())
+
+sns.countplot(data=df, x="churn")
+plt.title("Répartition des clients selon le churn")
+plt.savefig("../data/churn_distribution.png")
+plt.show()
+
+plt.figure(figsize=(10, 6))
+sns.heatmap(df.corr(), annot=True)
+plt.title("Corrélations")
+plt.savefig("../data/correlation.png")
+plt.show()
+Exécuter :
+
+cd notebooks
+python exploration.py
+cd ..
+PARTIE 6 — ENTRAÎNEMENT DU MODÈLE
+Nous allons comparer :
+
+Logistic Regression
+Decision Tree
+Random Forest
+Créer :
+
+nano src/train.py
+Code :
+
+import pandas as pd
+import joblib
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score
+)
+
+df = pd.read_csv("data/raw/churn.csv")
+
+X = df.drop("churn", axis=1)
+y = df["churn"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+models = {
+    "logistic_regression": Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", LogisticRegression(max_iter=1000))
+    ]),
+
+    "decision_tree": DecisionTreeClassifier(
+        max_depth=5,
+        random_state=42
+    ),
+
+    "random_forest": RandomForestClassifier(
+        n_estimators=200,
+        random_state=42
+    )
+}
+
+results = {}
+
+for name, model in models.items():
+
+    print(f"\nEntraînement : {name}")
+
+    model.fit(X_train, y_train)
+
+    predictions = model.predict(X_test)
+
+    results[name] = {
+        "accuracy": accuracy_score(y_test, predictions),
+        "precision": precision_score(y_test, predictions),
+        "recall": recall_score(y_test, predictions),
+        "f1": f1_score(y_test, predictions)
+    }
+
+    print(results[name])
+
+# Sélection du Random Forest pour la suite du TP
+model = models["random_forest"]
+
+joblib.dump(model, "models/model.pkl")
+
+print("\nModèle sauvegardé dans models/model.pkl")
+Exécuter : python src/train.py
+
+ 
+Vérifier : ls -lh models/
+
+ 
+Vous devez obtenir : model.pkl
+
+PARTIE 7 — CRÉATION DE L’API FASTAPI
+Créer :
+
+nano api/main.py
+Code :
+
+from fastapi import FastAPI
+from pydantic import BaseModel
+import joblib
+import time
+
+from prometheus_fastapi_instrumentator import Instrumentator
+
+app = FastAPI(
+    title="Churn Prediction API",
+    version="1.0.0"
+)
+
+model = joblib.load("models/model.pkl")
+
+
+class ClientData(BaseModel):
+    age: int
+    anciennete: int
+    revenu: float
+    nb_reclamations: int
+    montant_mensuel: float
+    retards_paiement: int
+
+
+@app.get("/")
+def root():
+    return {
+        "application": "Churn Prediction API",
+        "version": "1.0.0",
+        "status": "running"
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "UP"
+    }
+
+
+@app.get("/model/info")
+def model_info():
+    return {
+        "model": "Random Forest",
+        "version": "1.0.0"
+    }
+
+
+@app.post("/predict")
+def predict(data: ClientData):
+
+    start = time.time()
+
+    values = [[
+        data.age,
+        data.anciennete,
+        data.revenu,
+        data.nb_reclamations,
+        data.montant_mensuel,
+        data.retards_paiement
+    ]]
+
+    prediction = model.predict(values)[0]
+    probability = model.predict_proba(values)[0][1]
+
+    duration = time.time() - start
+
+    print(
+        f"prediction={prediction}, "
+        f"probability={probability:.4f}, "
+        f"duration={duration:.4f}s"
+    )
+
+    return {
+        "prediction": "CHURN" if prediction == 1 else "NO_CHURN",
+        "probability": round(float(probability), 4),
+        "model_version": "1.0.0",
+        "duration_ms": round(duration * 1000, 2)
+    }
+
+
+Instrumentator().instrument(app).expose(app)
+
+PARTIE 8 — LANCEMENT DE L’API
+Depuis la racine :
+
+uvicorn api.main:app --reload
+Vous devez obtenir :
+
+Uvicorn running on http://127.0.0.1:8000
+Tester :
+
+curl http://127.0.0.1:8000/
+Tester :
+
+curl http://127.0.0.1:8000/health
+Tester les informations du modèle :
+
+curl http://127.0.0.1:8000/model/info
+
+PARTIE 9 — TEST DE PRÉDICTION
+Commande :
+
+curl -X POST http://127.0.0.1:8000/predict \
+-H "Content-Type: application/json" \
+-d '{
+    "age": 35,
+    "anciennete": 5,
+    "revenu": 450000,
+    "nb_reclamations": 2,
+    "montant_mensuel": 25000,
+    "retards_paiement": 2
+}'
+Résultat attendu :
+
+{
+    "prediction": "CHURN",
+    "probability": 0.87,
+    "model_version": "1.0.0",
+    "duration_ms": 2.31
+}
+La valeur exacte de la probabilité dépend du modèle entraîné.
+
+PARTIE 10 — DOCUMENTATION AUTOMATIQUE FASTAPI
+Ouvrir dans le navigateur :
+
+http://127.0.0.1:8000/docs
+Vous obtenez Swagger UI.
+
+Tester directement :
+
+POST /predict
+avec :
+
+{
+  "age": 35,
+  "anciennete": 5,
+  "revenu": 450000,
+  "nb_reclamations": 2,
+  "montant_mensuel": 25000,
+  "retards_paiement": 2
+}
+
+PARTIE 11 — TESTS PYTEST
+Créer :
+
+nano tests/test_api.py
+Code :
+
+from fastapi.testclient import TestClient
+
+from api.main import app
+
+client = TestClient(app)
+
+
+def test_root():
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+
+
+def test_health():
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+
+    assert response.json()["status"] == "UP"
+
+
+def test_model_info():
+
+    response = client.get("/model/info")
+
+    assert response.status_code == 200
+
+
+def test_prediction():
+
+    payload = {
+        "age": 35,
+        "anciennete": 5,
+        "revenu": 450000,
+        "nb_reclamations": 2,
+        "montant_mensuel": 25000,
+        "retards_paiement": 2
+    }
+
+    response = client.post(
+        "/predict",
+        json=payload
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "prediction" in data
+    assert "probability" in data
+    assert "model_version" in data
+Exécuter :
+
+pytest
+Résultat attendu :
+
+4 passed
+PARTIE 12 — GESTION DU CODE AVEC GIT
+Initialiser Git :
+
+git init
+Configurer Git :
+
+git config --global user.name "Moustapha DER"
+git config --global user.email "moustapha.der@moustaphader.com"
+Créer .gitignore :
+
+nano .gitignore
+Contenu :
+
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+.pytest_cache/
+Premier commit :
+
+git add .
+git commit -m "Initialisation du projet ML Churn"
+Créer la branche develop :
+
+git branch -M main
+git checkout -b develop
+Créer une branche fonctionnalité :
+
+git checkout -b feature/model
+Après modification :
+
+git add .
+git commit -m "Ajout du modèle de prédiction du churn"
+Retourner sur develop :
+
+git checkout develop
+Fusionner :
+
+git merge feature/model
+
+PARTIE 13 — CRÉATION DU DÉPÔT GITHUB
+Créer un dépôt GitHub nommé :
+
+ml-churn-project
+Puis :
+
+git remote add origin https://github.com/USERNAME/ml-churn-project.git
+Vérifier :
+
+git remote -v
+Envoyer :
+
+git push -u origin main
+Puis :
+
+git push -u origin develop
+
+PARTIE 14 — DOCKERISATION
+Créer Dockerfile :
+
+nano Dockerfile
+Contenu :
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+Construire l'image :
+
+docker build -t ml-churn-api:1.0 .
+Vérifier :
+
+docker images
+Lancer :
+
+docker run -d \
+--name ml-churn-api \
+-p 8000:8000 \
+ml-churn-api:1.0
+Vérifier :
+
+docker ps
+Tester :
+
+curl http://localhost:8000/health
+Arrêter :
+
+docker stop ml-churn-api
+Supprimer :
+
+docker rm ml-churn-api
+
+PARTIE 15 — DOCKER COMPOSE
+Créer :
+
+nano docker-compose.yml
+Version initiale :
+
+services:
+
+  api:
+    build: .
+    container_name: ml-churn-api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+Lancer :
+
+docker compose up -d
+Vérifier :
+
+docker compose ps
+Logs :
+
+docker compose logs api
+Arrêter :
+
+docker compose down
+
+PARTIE 16 — CI AVEC GITHUB ACTIONS
+Créer :
+
+nano .github/workflows/ci.yml
+Contenu :
+
+name: CI ML Churn
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installation
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Tests
+        run: |
+          pytest
+Ajouter :
+
+git add .
+git commit -m "Ajout du pipeline CI"
+Envoyer :
+
+git push origin develop
+Dans GitHub :
+
+Repository
+    ↓
+Actions
+    ↓
+CI ML Churn
+Les tests sont automatiquement exécutés.
+
+PARTIE 17 — TEST E2E AVEC SELENIUM
+Installer :
+
+pip install selenium
+Créer :
+
+nano tests/test_selenium.py
+Exemple :
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+
+
+def test_application():
+
+    driver = webdriver.Chrome()
+
+    try:
+
+        driver.get("http://localhost:8000/docs")
+
+        assert "FastAPI" in driver.title
+
+    finally:
+
+        driver.quit()
+Exécuter :
+
+pytest tests/test_selenium.py
+Dans une application Web complète avec interface utilisateur, Selenium permettra ensuite de tester :
+
+Ouverture de l'application
+        ↓
+Saisie des données client
+        ↓
+Clic sur "Prédire"
+        ↓
+Appel API
+        ↓
+Affichage du résultat
+        ↓
+Vérification du résultat
+
+PARTIE 18 — TEST DE CHARGE AVEC JMETER
+Installer Apache JMeter sur la machine de TP.
+
+Lancer :
+
+jmeter
+Créer un :
+
+Test Plan
+   └── Thread Group
+         └── HTTP Request
+               └── HTTP Header Manager
+                     └── Listener
+Configuration :
+
+Thread Group
+Number of Threads: 100
+Ramp-Up Period: 10
+Loop Count: 10
+HTTP Request
+Protocol: HTTP
+Server: localhost
+Port: 8000
+Method: POST
+Path: /predict
+Body :
+
+{
+  "age": 35,
+  "anciennete": 5,
+  "revenu": 450000,
+  "nb_reclamations": 2,
+  "montant_mensuel": 25000,
+  "retards_paiement": 2
+}
+Mesurer :
+
+Average response time
+Median
+90th percentile
+95th percentile
+Throughput
+Error %
+Requests/sec
+Puis refaire le test avec :
+
+100 utilisateurs
+500 utilisateurs
+1000 utilisateurs
+
+PARTIE 19 — LOGGING DE L’APPLICATION
+Modifier l'API pour utiliser le module logging.
+
+Ajouter :
+
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s"
+)
+
+logger = logging.getLogger(__name__)
+Dans /predict :
+
+logger.info(
+    "Prediction request: model_version=1.0.0"
+)
+En cas d'erreur :
+
+logger.error(
+    "Prediction error"
+)
+Les logs doivent permettre de répondre à :
+
+Quand ?
+Qui ?
+Quelle opération ?
+Quel modèle ?
+Quel résultat ?
+Combien de temps ?
+Quelle erreur ?
+
+PARTIE 20 — ELASTICSEARCH + LOGSTASH + KIBANA
+Créer : nano docker-compose.yml
+
+ 
+Ajouter l'infrastructure d'observabilité.
+
+Architecture :
+
+FastAPI
+   │
+   │ logs
+   ▼
+Logstash
+   │
+   ▼
+Elasticsearch
+   │
+   ▼
+Kibana
+Le principe est :
+
+Application
+    ↓
+Logs
+    ↓
+Logstash
+    ↓
+Elasticsearch
+    ↓
+Kibana
+Kibana sera utilisé pour rechercher :
+
+prediction
+ERROR
+model_version
+response_time
+et construire des visualisations.
+
+PARTIE 21 — PROMETHEUS
+L'API expose déjà : /metrics
+
+ 
+Tester : curl http://localhost:8000/metrics
+
+ 
+Vous devez obtenir des métriques Prometheus.
+
+Créer :
+
+nano monitoring/prometheus/prometheus.yml
+Contenu :
+
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+
+  - job_name: "ml-churn-api"
+
+    static_configs:
+      - targets:
+          - "api:8000"
+Prometheus récupérera périodiquement les métriques de l'API.
+
+PARTIE 22 — GRAFANA
+Architecture :
+
+FastAPI
+   │
+   │ /metrics
+   ▼
+Prometheus
+   │
+   ▼
+Grafana
+Lancer Grafana avec Docker :
+
+docker run -d \
+--name grafana \
+-p 3000:3000 \
+grafana/grafana
+Ouvrir : http://localhost:3000
+
+ 
+Configurer Prometheus comme Data Source.
+
+Créer ensuite un dashboard avec :
+
+Nombre de requêtes
+Temps de réponse
+Nombre d'erreurs
+Taux d'erreur
+Nombre de prédictions
+
+PARTIE 23 — ARCHITECTURE COMPLÈTE
+À ce stade, l'architecture devient :
+
+                         UTILISATEUR
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │  Interface Web  │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │    FastAPI      │
+                    │    /predict     │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │   ML Model      │
+                    │ Random Forest   │
+                    └─────────────────┘
+
+       ┌──────────────────────────────────────────┐
+       │              DEVOPS / MLOPS              │
+       │                                          │
+       │ Git → Tests → Docker → CI/CD             │
+       │                                          │
+       │ Logs → Logstash → Elasticsearch → Kibana │
+       │                                          │
+       │ Metrics → Prometheus → Grafana           │
+       └──────────────────────────────────────────┘
+PARTIE 24 — PIPELINE INDUSTRIEL
+Le pipeline complet est :
+
+Développeur
+     │
+     ▼
+    Git
+     │
+     ▼
+Feature branch
+     │
+     ▼
+Pull Request
+     │
+     ▼
+GitHub Actions
+     │
+     ├── Tests unitaires
+     ├── Tests API
+     ├── Tests intégration
+     └── Build Docker
+             │
+             ▼
+        Image Docker
+             │
+             ▼
+        Déploiement
+             │
+             ▼
+      Application ML
+             │
+       ┌─────┴─────┐
+       ▼           ▼
+     Logs        Metrics
+       │           │
+       ▼           ▼
+     ELK       Prometheus
+       │           │
+       ▼           ▼
+    Kibana      Grafana
+PARTIE 25 — DÉPLOIEMENT
+Pour un premier déploiement pédagogique, utiliser une VM Linux ou un serveur cloud.
+
+Installer Git :
+
+sudo apt update
+sudo apt install git -y
+Cloner : git clone https://github.com/USERNAME/ml-churn-project.git
+
+ 
+Entrer dans le projet : cd ml-churn-project
+
+ 
+Construire : docker compose build
+
+ 
+Lancer : docker compose up -d
+
+ 
+Vérifier : docker compose ps
+
+ 
+Tester : curl http://SERVER_IP:8000/health
+
+ 
+Tester la prédiction :
+
+curl -X POST http://SERVER_IP:8000/predict \
+-H "Content-Type: application/json" \
+-d '{
+    "age": 35,
+    "anciennete": 5,
+    "revenu": 450000,
+    "nb_reclamations": 2,
+    "montant_mensuel": 25000,
+    "retards_paiement": 2
+}'
+PARTIE 26 — VÉRIFICATION FINALE
+L'étudiant doit être capable de démontrer :
+
+1. Data Science
+python src/generate_data.py
+python src/train.py
+2. API
+uvicorn api.main:app --reload
+3. Tests
+pytest
+4. Docker
+docker build -t ml-churn-api:1.0 .
+docker run -p 8000:8000 ml-churn-api:1.0
+5. CI/CD
+git push
+     ↓
+GitHub Actions
+     ↓
+Tests
+     ↓
+Build
+6. Performance
+JMeter
+   ↓
+100 utilisateurs
+500 utilisateurs
+1000 utilisateurs
+7. Logs
+FastAPI
+   ↓
+ELK
+   ↓
+Kibana
+8. Monitoring
+FastAPI
+   ↓
+Prometheus
+   ↓
+Grafana
+PARTIE 27 — LIVRABLE FINAL DES ÉTUDIANTS
+Chaque étudiant doit fournir :
+
+1. Repository Git
+2. Dataset
+3. Notebook Data Science
+4. Script d'entraînement
+5. Modèle ML
+6. API FastAPI
+7. Tests Pytest
+8. Tests Selenium
+9. Plan de test JMeter
+10. Dockerfile
+11. docker-compose.yml
+12. Pipeline GitHub Actions
+13. Configuration Prometheus
+14. Dashboard Grafana
+15. Configuration ELK
+16. Documentation technique
+17. Guide d'installation
+18. Rapport d'industrialisation
+19. Présentation finale
+PARTIE 28 — QUESTIONS DE SOUTENANCE
+L'étudiant devra expliquer :
+
+Data Science
+Pourquoi ce problème est pertinent ?
+Quelle est la variable cible ?
+Pourquoi s'agit-il d'une classification ?
+Comment avez-vous séparé train et test ?
+Pourquoi avoir choisi Random Forest ?
+API
+Pourquoi transformer le modèle en API ?
+Pourquoi utiliser FastAPI ?
+Quelle différence entre /health et /predict ?
+Tests
+Pourquoi Pytest ?
+Pourquoi Selenium ?
+Quelle différence entre test unitaire, intégration et E2E ?
+Performance
+Pourquoi JMeter ?
+Quelle différence entre charge, stress et endurance ?
+Que signifie le 95e percentile du temps de réponse ?
+DevOps
+Pourquoi Git ?
+Pourquoi utiliser des branches ?
+Pourquoi Docker ?
+Pourquoi CI/CD ?
+Observabilité
+Quelle différence entre logs et métriques ?
+Pourquoi ELK ?
+Pourquoi Prometheus ?
+Pourquoi Grafana ?
+Que surveilleriez-vous sur une API ML en production ?
+MLOps
+Comment versionner le modèle ?
+Que faire si un nouveau modèle est moins performant ?
+Comment détecter une dégradation du modèle ?
+Comment gérer plusieurs versions du modèle ?
+Comment revenir à une ancienne version ?
+OBJECTIF FINAL DU TP
+Le résultat attendu n'est pas simplement :
+
+« J'ai entraîné un modèle de Machine Learning. »
+
+Mais :
+
+« J'ai développé un modèle de Machine Learning, je l'ai exposé sous forme d'API, testé automatiquement, versionné avec Git, conteneurisé avec Docker, intégré dans une chaîne CI/CD, déployé, soumis à des tests de charge et placé sous observabilité grâce aux logs, aux métriques et aux dashboards. »
+
+C'est cette transformation du prototype Data Science en service ML industrialisé qui constitue le cœur du module
+
+ 
