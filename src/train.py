@@ -38,8 +38,8 @@ def main():
     (out / 'metadata.json').write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding='utf-8')
     processed = ROOT / 'data/processed'
     processed.mkdir(parents=True, exist_ok=True)
-    x_train.assign(churn=y_train).to_csv(processed / 'train.csv', index=False)
-    x_test.assign(churn=y_test).to_csv(processed / 'test.csv', index=False)
+    x_train.assign(churn=y_train).to_csv(processed / 'train.csv', index=False, lineterminator='\n')
+    x_test.assign(churn=y_test).to_csv(processed / 'test.csv', index=False, lineterminator='\n')
     print(json.dumps(results, indent=2))
 
 

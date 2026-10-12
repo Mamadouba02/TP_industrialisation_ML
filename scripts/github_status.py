@@ -42,4 +42,8 @@ workflows = get('/actions/workflows')
 permissions = get('/actions/permissions')
 contents = get('/contents/.github/workflows/ci.yml')
 runs = get('/actions/runs?per_page=5')
-print(json.dumps({'workflows': workflows, 'permissions': permissions, 'workflow_file': {key: contents.get(key) for key in ('path', 'sha', 'error_status', 'error')}, 'runs': [{key: run.get(key) for key in ('id', 'status', 'conclusion', 'head_branch', 'html_url')} for run in runs.get('workflow_runs', [])], 'runs_error': runs.get('error_status', runs.get('error'))}, indent=2))
+jobs = []
+if '--jobs' in sys.argv and runs.get('workflow_runs'):
+    details = get(f"/actions/runs/{int(runs['workflow_runs'][0]['id'])}/jobs")
+    jobs = [{'id': job.get('id'), 'status': job.get('status'), 'conclusion': job.get('conclusion'), 'steps': [{key: step.get(key) for key in ('name', 'status', 'conclusion')} for step in job.get('steps', [])]} for job in details.get('jobs', [])]
+print(json.dumps({'workflows': workflows, 'permissions': permissions, 'workflow_file': {key: contents.get(key) for key in ('path', 'sha', 'error_status', 'error')}, 'runs': [{key: run.get(key) for key in ('id', 'status', 'conclusion', 'head_branch', 'html_url')} for run in runs.get('workflow_runs', [])], 'runs_error': runs.get('error_status', runs.get('error')), 'jobs': jobs}, indent=2))

@@ -26,7 +26,7 @@ def main():
     path = ROOT / 'data/raw/churn.csv'
     path.parent.mkdir(parents=True, exist_ok=True)
     df = generate_data()
-    df.to_csv(path, index=False)
+    df.to_csv(path, index=False, lineterminator='\n')
     print(df.head())
     print(df.churn.value_counts())
 

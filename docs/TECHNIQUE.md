@@ -13,6 +13,8 @@ Métriques : `FastAPI /metrics → Prometheus → Grafana`.
 
 La séparation est stratifiée et reproductible. Le scaler de la régression logistique est ajusté uniquement sur le train grâce au Pipeline. Arbre limité à profondeur 5 ; forêt de 200 arbres. Accuracy, précision, rappel et F1 sont enregistrés pour chaque candidat. Random Forest est retenu conformément au TP, même si un autre modèle obtient un meilleur score. `data/processed` conserve les partitions ; `models/metadata.json` conserve leurs tailles, les métriques, les empreintes et la version scikit-learn.
 
+Les CSV sont générés et versionnés avec des fins de ligne LF explicites (`.gitattributes`) afin que l'empreinte du dataset reste identique après un passage Windows/Linux et un checkout Git. Le modèle joblib est traité comme un artefact binaire.
+
 ## API et exploitation
 
 Chargement du modèle à l'ouverture de l'application ; échec du démarrage si l'artefact est absent. `MODEL_PATH` permet de changer le modèle et doit pointer vers un artefact accompagné de son `metadata.json`. Charger uniquement des fichiers joblib de confiance. L'ordre et les noms des variables sont partagés entre entraînement et inférence.
