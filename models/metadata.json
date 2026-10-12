@@ -10,7 +10,7 @@
     "retards_paiement"
   ],
   "sklearn_version": "1.9.1",
-  "dataset_sha256": "9d6678653eb6109afdd66d602192984cef041644c91d9b18099fc25a58933fb6",
+  "dataset_sha256": "a703abb4df692a74cccc257130bebfabae069074c5d998f11e3dabe3c06cde1b",
   "model_sha256": "823f2e409b8e2933677059bbf74f0e3f0464f8373e8d9e6978fd043549c16090",
   "train_rows": 1600,
   "test_rows": 400,

@@ -10,6 +10,7 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 python src/generate_data.py
 python src/train.py
+python scripts/check_artifacts.py
 python notebooks/exploration.py
 pytest
 uvicorn api.main:app --reload
@@ -53,7 +54,9 @@ Créer `reports/load` au préalable ; chaque répertoire de sortie HTML doit êt
 
 ## GitHub et déploiement
 
-Le workflow `.github/workflows/ci.yml` génère les données, entraîne, teste, construit l'image, vérifie le conteneur et lance Selenium. Il ne publie ni ne déploie automatiquement.
+Le workflow `.github/workflows/ci.yml` vérifie d'abord les empreintes des artefacts versionnés, puis génère les données, entraîne, teste, construit l'image, vérifie le conteneur et lance Selenium. Il ne publie ni ne déploie automatiquement.
+
+Déclencheurs configurés : push et pull request sur main/develop, ainsi que démarrage manuel. `python scripts/github_status.py --jobs` consulte son état ; `python scripts/github_status.py --dispatch` démarre une vérification de main avec l'authentification Git existante, utilisée uniquement en mémoire.
 
 Le projet est publié sur [GitHub](https://github.com/Mamadouba02/TP_industrialisation_ML) avec `main`, `develop` et `feature/model`. Pour les nouvelles fonctionnalités, créer une branche et ouvrir une PR vers `develop`. Pour rattacher un nouveau dossier local au dépôt :
 

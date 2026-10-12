@@ -1,0 +1,2 @@
+data/**/*.csv text eol=lf
+models/*.pkl binary

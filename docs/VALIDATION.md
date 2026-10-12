@@ -42,7 +42,9 @@ Les essais Windows initiaux ont été perturbés par une interruption/instabilit
 
 ## CI GitHub
 
-Le workflow est reconnu et actif ; Actions est activé dans le dépôt. Aucun run n'a été enregistré après le premier push. Un déclenchement manuel `workflow_dispatch` est ajouté pour permettre une vérification explicite ; son résultat sera consigné après exécution.
+Le workflow est reconnu et actif ; Actions est activé dans le dépôt. Aucun run n'a été enregistré après le premier push. Le déclenchement manuel `workflow_dispatch` a exécuté [la CI avec succès](https://github.com/Mamadouba02/TP_industrialisation_ML/actions/runs/38287529886) : installation, génération, entraînement, exploration, Pytest, Compose, build Docker, intégration HTTP et Selenium. Une dernière vérification est relancée après correction de la portabilité des empreintes CSV.
+
+La vérification Git a détecté une différence d'empreinte due à CRLF/LF. Les générateurs et `.gitattributes` imposent maintenant LF. `scripts/check_artifacts.py` vérifie le dataset et le modèle publiés avant tout réentraînement dans la CI, afin de détecter ce défaut plutôt que de le masquer en régénérant les fichiers.
 
 ## Infrastructure externe nécessaire
 
