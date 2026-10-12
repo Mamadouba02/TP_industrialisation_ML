@@ -3,7 +3,7 @@
 ## Exécuté
 
 - Windows, Python 3.12.7, Git 2.54.0, Docker 29.4.3, Compose 5.1.3, Java 17.
-- Environnement `.venv` créé ; dépendances exactes dans `requirements.txt` ; `pip check` réussi.
+- Environnement `.venv` créé, pip mis à jour en 26.2.1 ; dépendances exactes dans `requirements.txt` ; `pip check` réussi.
 - Dataset : 2 000 lignes ; 1 139 non-churn, 861 churn, aucune valeur manquante.
 - Trois modèles entraînés ; modèle, partitions, métadonnées et graphiques sauvegardés. Notebook livré.
 - Pytest : 13 réussis, 1 Selenium ignoré dans la suite standard. Starlette émet un avertissement de dépréciation TestClient/httpx sans échec.
@@ -42,7 +42,7 @@ Les essais Windows initiaux ont été perturbés par une interruption/instabilit
 
 ## CI GitHub
 
-Le workflow est reconnu et actif ; Actions est activé dans le dépôt. Aucun run n'a été enregistré après le premier push. Le déclenchement manuel `workflow_dispatch` a exécuté [la CI avec succès](https://github.com/Mamadouba02/TP_industrialisation_ML/actions/runs/38287529886) : installation, génération, entraînement, exploration, Pytest, Compose, build Docker, intégration HTTP et Selenium. Une dernière vérification est relancée après correction de la portabilité des empreintes CSV.
+Le workflow est reconnu et actif ; Actions est activé dans le dépôt. Aucun run n'a été enregistré après le premier push. Le déclenchement manuel `workflow_dispatch` a exécuté [la CI finale avec succès](https://github.com/Mamadouba02/TP_industrialisation_ML/actions/runs/38288623027) : provenance des artefacts versionnés, installation, génération, entraînement, exploration, Pytest, Compose, build Docker, intégration HTTP et Selenium. Le compte rendu de cette exécution et le commit testé sont conservés dans `reports/github-ci.json`.
 
 La vérification Git a détecté une différence d'empreinte due à CRLF/LF. Les générateurs et `.gitattributes` imposent maintenant LF. `scripts/check_artifacts.py` vérifie le dataset et le modèle publiés avant tout réentraînement dans la CI, afin de détecter ce défaut plutôt que de le masquer en régénérant les fichiers.
 
