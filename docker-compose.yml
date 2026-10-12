@@ -1,0 +1,67 @@
+services:
+  logs-init:
+    image: busybox:1.37.0
+    user: "0:0"
+    command: ["chown", "1000:1000", "/logs"]
+    volumes: ["api-logs:/logs"]
+  api:
+    build: .
+    image: ml-churn-api:1.0
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: ["api-logs:/app/logs"]
+    restart: unless-stopped
+    depends_on:
+      logs-init:
+        condition: service_completed_successfully
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    profiles: [monitoring]
+    ports: ["127.0.0.1:9090:9090"]
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+  grafana:
+    image: grafana/grafana:11.6.0
+    profiles: [monitoring]
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-churn-local-demo}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.3
+    profiles: [elk]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes: ["elastic-data:/usr/share/elasticsearch/data"]
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.17.3
+    profiles: [elk]
+    environment:
+      LS_JAVA_OPTS: -Xms256m -Xmx256m
+    volumes:
+      - ./docker/logstash/pipeline.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - api-logs:/logs:ro
+      - logstash-data:/usr/share/logstash/data
+    depends_on:
+      elasticsearch:
+        condition: service_started
+      logs-init:
+        condition: service_completed_successfully
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.3
+    profiles: [elk]
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports: ["127.0.0.1:5601:5601"]
+    depends_on: [elasticsearch]
+volumes:
+  api-logs:
+  prometheus-data:
+  grafana-data:
+  elastic-data:
+  logstash-data:

@@ -1,0 +1,1 @@
+L'interface de démonstration est Swagger UI, servie par FastAPI à `/docs`. Elle permet de saisir le JSON client et d'exécuter `/predict`. Aucun frontend métier supplémentaire n'est requis par les exemples de la procédure.
