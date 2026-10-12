@@ -12,7 +12,7 @@ Consulter `models/metadata.json` pour les scores mesurés et `docs/VALIDATION.md
 
 ## Limites et suites
 
-Dataset synthétique, absence de validation externe, de test temporel et de labels de production. Un déploiement réel nécessiterait une analyse de dérive, des seuils métier, une calibration et une validation sur données représentatives. Les résultats JMeter et le déploiement distant restent à produire lorsque l'infrastructure est disponible. Les tests de navigateur ne constituent pas un parcours métier complet ; Swagger sert d'interface de démonstration.
+Dataset synthétique, absence de validation externe, de test temporel et de labels de production. Un déploiement réel nécessiterait une analyse de dérive, des seuils métier, une calibration et une validation sur données représentatives. Les essais JMeter sont réalisés : l'instance reste sans erreur à 100 utilisateurs, puis sature à 500/1 000 utilisateurs (12,8 % et 96,17 % d'erreurs). Il faut dimensionner et contrôler l'admission avant de soutenir ces charges. Les mesures détaillées et leur contexte sont dans VALIDATION.md. Le déploiement distant attend un serveur cible. Les tests de navigateur vérifient Swagger, interface de démonstration du TP.
 
 ## Correspondance des livrables
 
