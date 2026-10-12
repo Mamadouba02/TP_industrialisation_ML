@@ -41,7 +41,7 @@ Prometheus : http://localhost:9090 ; Grafana : http://localhost:3000 (admin / ch
 
 API démarrée, Chrome installé : sous PowerShell, `$env:RUN_E2E='1'; pytest tests/test_selenium.py`. Le test vérifie le chargement de Swagger et la présence de `/predict`. Sans activation explicite il est ignoré par pytest. La CI l'exécute sur le conteneur.
 
-Plan JMeter : [tests/load/churn.jmx](tests/load/churn.jmx). Exécuter depuis la racine, API démarrée :
+Plan JMeter : [tests/load/churn.jmx](tests/load/churn.jmx). Java est requis. Une installation portable de JMeter 5.6.3 est disponible localement dans `tools/apache-jmeter-5.6.3` ; elle est exclue du dépôt. Sous Windows, remplacer `jmeter` par `.\tools\apache-jmeter-5.6.3\bin\jmeter.bat`. Exécuter depuis la racine, API démarrée :
 
 ```sh
 jmeter -n -t tests/load/churn.jmx -Jusers=100 -Jramp=10 -Jloops=10 -l reports/load/100.jtl -e -o reports/load/100
@@ -55,14 +55,14 @@ Créer `reports/load` au préalable ; chaque répertoire de sortie HTML doit êt
 
 Le workflow `.github/workflows/ci.yml` génère les données, entraîne, teste, construit l'image, vérifie le conteneur et lance Selenium. Il ne publie ni ne déploie automatiquement.
 
-Configurer votre identité Git dans ce dépôt, créer `main`, `develop`, puis une branche `feature/model` et ouvrir une PR vers `develop`. Créer le dépôt GitHub sous votre compte puis renseigner son URL :
+Le projet est publié sur [GitHub](https://github.com/Mamadouba02/TP_industrialisation_ML) avec `main`, `develop` et `feature/model`. Pour les nouvelles fonctionnalités, créer une branche et ouvrir une PR vers `develop`. Pour rattacher un nouveau dossier local au dépôt :
 
 ```sh
-git remote add origin https://github.com/VOTRE_COMPTE/ml-churn-project.git
+git remote add origin https://github.com/Mamadouba02/TP_industrialisation_ML.git
 git push -u origin main
 git push -u origin develop
 ```
 
-Sur une VM Linux : installer Docker et Compose, cloner le dépôt, puis `docker compose up -d --build`. Les ports sont locaux par défaut : accès via tunnel SSH (`ssh -L 8000:localhost:8000 utilisateur@serveur`) ou reverse proxy TLS authentifié. Vérifier `/health` et une prédiction avant mise en service. Pour revenir à une version antérieure, récupérer le commit et le modèle associés, reconstruire puis relancer ; conserver les métriques d'évaluation et les dépendances de chaque version.
+Sur une VM Linux : installer Docker et Compose, cloner avec `git clone https://github.com/Mamadouba02/TP_industrialisation_ML.git`, puis `docker compose up -d --build` depuis le dépôt. Les ports sont locaux par défaut : accès via tunnel SSH (`ssh -L 8000:localhost:8000 utilisateur@serveur`) ou reverse proxy TLS authentifié. Vérifier `/health` et une prédiction avant mise en service. Pour revenir à une version antérieure, récupérer le commit et le modèle associés, reconstruire puis relancer ; conserver les métriques d'évaluation et les dépendances de chaque version.
 
 Documentation : [architecture](docs/TECHNIQUE.md), [rapport](docs/RAPPORT.md), [présentation et soutenance](docs/PRESENTATION.md), [validation locale](docs/VALIDATION.md).

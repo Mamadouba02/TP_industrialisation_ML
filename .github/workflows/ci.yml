@@ -1,5 +1,6 @@
 name: CI ML Churn
 on:
+  workflow_dispatch:
   push:
     branches: [main, develop]
   pull_request:

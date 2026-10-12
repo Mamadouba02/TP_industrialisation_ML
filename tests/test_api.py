@@ -1,6 +1,8 @@
 import pytest
+import pandas as pd
 from fastapi.testclient import TestClient
 from api.main import app
+from src.config import FEATURES
 
 PAYLOAD = dict(age=35, anciennete=5, revenu=450000, nb_reclamations=2, montant_mensuel=25000, retards_paiement=2)
 
@@ -32,6 +34,9 @@ def test_prediction(client):
     assert data['model_version'] == '1.0.0'
     assert data['duration_ms'] >= 0
     assert response.headers['X-Request-ID']
+    values = pd.DataFrame([PAYLOAD], columns=FEATURES)
+    expected = int(app.state.model.predict(values)[0])
+    assert data['prediction'] == ('CHURN' if expected else 'NO_CHURN')
 
 
 @pytest.mark.parametrize('change', [{'age': 17}, {'nb_reclamations': -1}, {'age': 35.5}, {'extra': 1}, {'revenu': -1}])
@@ -53,7 +58,7 @@ def test_metrics(client):
 def test_inference_failure(client, monkeypatch):
     def fail(*args):
         raise RuntimeError('internal detail')
-    monkeypatch.setattr(app.state.model, 'predict', fail)
+    monkeypatch.setattr(app.state.model, 'predict_proba', fail)
     response = client.post('/predict', json=PAYLOAD)
     assert response.status_code == 503
     assert 'internal detail' not in response.text

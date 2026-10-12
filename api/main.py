@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -8,6 +9,7 @@ from pathlib import Path
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field
 from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -30,6 +32,7 @@ async def lifespan(app):
     path = Path(os.environ.get('MODEL_PATH', str(ROOT / 'models/model.pkl')))
     app.state.model = joblib.load(path)
     app.state.metadata = json.loads(path.with_name('metadata.json').read_text(encoding='utf-8'))
+    app.state.inference_lock = asyncio.Semaphore(1)
     yield
     app.state.model = None
 
@@ -79,18 +82,24 @@ def model_info():
     return app.state.metadata
 
 
+def infer(model, data):
+    values = pd.DataFrame([data.model_dump()], columns=FEATURES)
+    probabilities = model.predict_proba(values)[0]
+    prediction = int(model.classes_[int(probabilities.argmax())])
+    probability = float(probabilities[list(model.classes_).index(1)])
+    return prediction, probability
+
+
 @app.post('/predict')
-def predict(data: ClientData, request: Request):
-    start = time.perf_counter()
+async def predict(data: ClientData, request: Request):
     try:
-        values = pd.DataFrame([data.model_dump()], columns=FEATURES)
-        model = app.state.model
-        prediction = int(model.predict(values)[0])
-        probability = float(model.predict_proba(values)[0][list(model.classes_).index(1)])
+        async with app.state.inference_lock:
+            start = time.perf_counter()
+            prediction, probability = await run_in_threadpool(infer, app.state.model, data)
+            duration = time.perf_counter() - start
     except Exception as exc:
         logger.error(json.dumps({'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'level': 'ERROR', 'operation': 'prediction', 'request_id': request.state.request_id, 'model_version': VERSION, 'error': 'Inference failed', 'error_type': type(exc).__name__}))
         raise HTTPException(503, 'Prediction unavailable')
-    duration = time.perf_counter() - start
     result = 'CHURN' if prediction == 1 else 'NO_CHURN'
     predictions.labels(result, VERSION).inc()
     latency.observe(duration)
