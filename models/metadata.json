@@ -1,0 +1,38 @@
+{
+  "model": "Random Forest",
+  "version": "1.0.0",
+  "features": [
+    "age",
+    "anciennete",
+    "revenu",
+    "nb_reclamations",
+    "montant_mensuel",
+    "retards_paiement"
+  ],
+  "sklearn_version": "1.9.1",
+  "dataset_sha256": "9d6678653eb6109afdd66d602192984cef041644c91d9b18099fc25a58933fb6",
+  "model_sha256": "823f2e409b8e2933677059bbf74f0e3f0464f8373e8d9e6978fd043549c16090",
+  "train_rows": 1600,
+  "test_rows": 400,
+  "selection_reason": "Random Forest imposé par la procédure ; comparaison conservée pour discussion.",
+  "results": {
+    "logistic_regression": {
+      "accuracy": 0.625,
+      "precision": 0.582089552238806,
+      "recall": 0.45348837209302323,
+      "f1": 0.5098039215686274
+    },
+    "decision_tree": {
+      "accuracy": 0.6325,
+      "precision": 0.5827814569536424,
+      "recall": 0.5116279069767442,
+      "f1": 0.544891640866873
+    },
+    "random_forest": {
+      "accuracy": 0.605,
+      "precision": 0.5514705882352942,
+      "recall": 0.436046511627907,
+      "f1": 0.487012987012987
+    }
+  }
+}

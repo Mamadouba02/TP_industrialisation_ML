@@ -1,0 +1,32 @@
+name: CI ML Churn
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python -m src.generate_data
+      - run: python -m src.train
+      - run: python -m notebooks.exploration
+      - run: pytest -m 'not e2e'
+      - run: docker compose config --quiet
+      - run: docker build -t ml-churn-api:ci .
+      - name: Container integration
+        run: |
+          docker run -d --name churn -p 8000:8000 ml-churn-api:ci
+          for i in $(seq 1 30); do curl -fsS http://localhost:8000/health && break || sleep 2; done
+          curl -fsS http://localhost:8000/health
+          curl -fsS -H 'Content-Type: application/json' -d '{"age":35,"anciennete":5,"revenu":450000,"nb_reclamations":2,"montant_mensuel":25000,"retards_paiement":2}' http://localhost:8000/predict
+      - name: Selenium
+        run: RUN_E2E=1 pytest tests/test_selenium.py
+      - name: Container logs
+        if: always()
+        run: docker logs churn || true
